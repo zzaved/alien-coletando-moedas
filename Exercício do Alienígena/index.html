@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+    <html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Exercício do Alien</title>
+        <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+        <style> body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; } </style>
+    </head>
+
+    <body>
+        <script>
+            // aqui eu criei duas constantes que irão ser responsáveis por definir a altura e largura do meu jogo, criando eles em uma variável porque, se eu tivesse colocado um número e depois modificasse ele, eu teria que mudar em todos os outros trechos do código, e dessa forma só preciso fazer a alteração do valor que a variável recebe.
+            const larguraJogo = 700;
+            const alturaJogo = 850;
+
+            const config = {
+                //essa linha serve para que o nosso jogo tenha uma renderização automática com a biblioteca Phaser
+                type: Phaser.AUTO,
+                //como explicado acima, aqui eu defini que a largura do meu jogo é o comprimento da variável definida
+                width: larguraJogo,
+                //como explicado, aqui eu defini que a altura do meu jogo será o valor da variável definidia acima
+                height: alturaJogo,
+
+                //abaixo, vamos definir como irá funcionar a física do nosso jogo
+                physics: {
+                    default: 'arcade',
+                    //abaixo, eu defino o peso da gravidade do nosso jogo e ativo o debug para conseguir visualizar os limites dos elementos do nosso jogo.
+                    arcade: {
+                        gravity: {y: 300},
+                        debug: true,
+                    }
+                },
+
+                scene: {
+                    preload: preload,
+                    create: create,
+                    update: update
+                }
+            };
+
+            //essa constante é responsável por criar o game no phaser
+            const game = new Phaser.Game(config);
+
+            //abaixo eu criei todas as variáveis que serão utilizadas ao longo do jogo
+            var alien;
+            var teclado;
+            var fogo;
+            var plataforma;
+            var plataforma2;
+            var chao;
+            var moeda;
+            var pontuacao = -1;
+
+            //abaixo eu carreguei todas os elementos que serão utilizados ao longo do nosso código 
+            function preload() {
+                this.load.image('background', 'assets/bg.png');
+                this.load.image('player','assets/alienigena.png');
+                this.load.image('turbo_nave', 'assets/turbo.png');
+                this.load.image('plataforma_tijolo', 'assets/tijolo.png');
+                this.load.image('plataforma_tijolo2', 'assets/tijolo.png');
+                this.load.image('moeda', 'assets/moeda.png');
+                this.load.image('chao', 'assets/chao.png')
+            }
+
+            //aqui eu irei criar todas as funções que serão utilizadas no nosso jogo
+            function create() {
+                //Adiciona uma imagem de fundo ('background') no centro da tela, com base na largura e altura do jogo.
+                this.add.image(larguraJogo/2, alturaJogo/2, 'background');
+            
+                //essa função eu crio o fogo para que ele futuramente apareça quando o botão de para cima for pressionado
+                //a função de fogo fica acima da do alien porque pela lógica de camadas ela irá aparecer por trás do elemento do nosso personagem! (achei essa lógica de camadas muito interessante)
+                fogo = this.add.sprite(0, 0, 'turbo_nave');
+                //o set visible recebe false porque ele só vai receber verdadeiro na função quando o botão para cima for avisado
+                fogo.setVisible(false);
+
+                //essa função cria a figura do alien para ser aplicada no jogo e a posição inicial dele
+                alien = this.physics.add.sprite(larguraJogo/2, 0, 'player');
+                alien.setCollideWorldBounds(true);
+            
+                //aqui eu criei a função para que o teclado seja útil ao longo do jogo para controlar o nosso personagem
+                teclado = this.input.keyboard.createCursorKeys();
+
+                //adiciona o chao para que o alien não chegue até o fundo da imagem
+                chao = this.physics.add.staticImage(larguraJogo/2, 810, 'chao');
+                //adicionei o collider para que o allien não atravesse o chão
+                this.physics.add.collider(alien, chao);
+
+                //adicionando a primeira plataforma no nosso jogo
+                plataforma = this.physics.add.staticImage(larguraJogo/2, 500, 'plataforma_tijolo');
+                //adicionei o collider para que o allien não atravesse a plataforma
+                this.physics.add.collider(alien, plataforma);
+
+                //adicione a segunda plataforma
+                plataforma2 = this.physics.add.staticImage(100, 300, 'plataforma_tijolo2');
+                //mesma lógica para que o alien não atravesse a plataforma
+                this.physics.add.collider(alien, plataforma2);
+
+                //adicionando moeda ao nosso jogo
+                moeda = this.physics.add.sprite(larguraJogo/2, 0, 'moeda');
+                //essa função configura a colisão da moeda com os limites do jogo, permitindo que ela não saia para fora da tela
+                moeda.setCollideWorldBounds(true);
+                //forma da moeda quicar
+                moeda.setBounce(0.7);
+                //adicionando a colisão abaixo da moeda com os elementos que não podem ser ultrapassados no nosso jogo, no caso as duas plataformas e o chão
+                this.physics.add.collider(moeda, plataforma);
+                this.physics.add.collider(moeda, plataforma2);
+                this.physics.add.collider(moeda, chao);
+
+                //adicionando o placar ao jogo e configurando como ele será exibido, desde o tamanho da fonte até a variável da quantidade de pontuação
+                placar = this.add.text(50, 50, 'Moedas:' + pontuacao, {fontSize:'45px', fill:'#495613'});
+
+                //abaixo a função da mecanica da coleta de moedas no nosso jogo:
+                this.physics.add.overlap(alien,moeda, function(){
+                    //quando o alien encosta na moeda ela irá desaparecer
+                    moeda.setVisible(false); 
+                    //essa função abaixo sorteia um número aleatório entre 50 e 650 (limites da tela) para a moeda spawnar em meio ao jogo
+                    var posicaoMoeda_Y = Phaser.Math.RND.between(50, 650);
+                    //essa função também é responsável pelo ajuste da posição da moeda
+                    moeda.setPosition(posicaoMoeda_Y, 100);
+                    //responsável por aumentar a pontuação ao alien encostar na moeda
+                    pontuacao +=1;
+                    //texto que irá aparecer no placar
+                    placar.setText('Moedas: ' + pontuacao);
+                    //após a moeda ser coletada, ela irá spawnar novamente e ficará visível
+                    moeda.setVisible(true);
+                });
+
+            }
+
+            //agora iremos por as funções em movimento
+            function update() {
+                //criando a função do fogo que irá aparecer quando o alien aparece
+                fogo.setPosition(alien.x, alien.y + alien.height/2)
+
+                //movimentação para a esquerda do alien de acordo com o teclado
+                if(teclado.left.isDown) {
+                    //controle de velocidade da movimentação e sentido
+                    alien.setVelocityX(-150);
+                }
+
+                //movimento para a direita do alien 
+                else if(teclado.right.isDown) {
+                    //velocidade de movimentação e sentido
+                    alien.setVelocityX(150);
+                }
+                
+                //se não foi pra cima nem pro baixo nem pro lado o alien ficará em repouso
+                else{
+                    alien.setVelocityX(0);
+                }
+
+                //movimento para cima do alien 
+                if (teclado.up.isDown){
+                    alien.setVelocityY(-150);
+                    //quando o alien voa para cima, é ativada a função do foguinho
+                    ativarTurbo();
+                }
+
+                //quando nenhum movimento ocorre o alien irá para baixo e irá desativar a função de turbo
+                else{
+                    semTurbo();
+                }
+
+                function ativarTurbo(){
+                    fogo.setVisible(true);
+                }
+                function semTurbo() {
+                    fogo.setVisible(false);
+                }
+
+            }
+
+            //abaixo a criação da lista que será impressa com os nomes dos aliens no console
+            let nomesAliens = ['Zezinho', 'Carlos', 'José'];
+            //com a lista criada, criei um for e defini que "i" só pode se repetir a quantidade de vezes de nomes que existem
+            for (let i = 0; i < nomesAliens.length; i++) {
+                console.log(nomesAliens[i]);
+            }    
+        
+        </script>
+    </body>
+
+</html>
